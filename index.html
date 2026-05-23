@@ -146,6 +146,24 @@
     color: var(--accent);
   }
 </style>
+<!-- iOS用のアプリアイコン -->
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
+<!-- Android用/一般的なブラウザ用のアプリアイコン -->
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+
+<!-- ホーム画面に追加した際、ブラウザのUIを隠してアプリのように全画面表示する設定（iOS向け） -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<!-- ホーム画面に表示されるアプリ名 -->
+<meta name="apple-mobile-web-app-title" content="おかね電卓">
+
+<!-- ブラウザのステータスバーなどのテーマカラー（お金トレイの色に合わせる） -->
+<meta name="theme-color" content="#2c3e50">
+
+<!-- Android等でアプリ風に動かすためのマニフェストファイル（後述） -->
+<link rel="manifest" href="manifest.json">
 </head>
 <body>
 
