@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>みえる！おかね電卓</title>
+<style>
+  :root {
+    --bg-color: #f4f5f7;
+    --tray-bg: #2c3e50; /* トレイの深いネイビー */
+    --text-main: #2f3542;
+    --btn-bg: #ffffff;
+    --btn-active: #e4e7eb;
+    --accent: #ff4757;
+  }
+
+  * {
+    box-sizing: border-box;
+    font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', sans-serif;
+    user-select: none;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .calculator {
+    width: 100%;
+    max-width: 400px;
+    height: 100vh;
+    max-height: 850px;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+  }
+
+  /* --- Zone A: お金トレイエリア (40%) --- */
+  .zone-a {
+    flex: 4;
+    background-color: var(--tray-bg);
+    padding: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 12px;
+    overflow-y: auto;
+    position: relative;
+    border-bottom: 4px solid #1a252f;
+  }
+
+  /* お金イラスト共通スタイル */
+  .money {
+    display: inline-block;
+    box-shadow: 0 5px 10px rgba(0,0,0,0.4);
+    border-radius: 4px;
+    animation: dropIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+
+  /* 硬貨は丸い影にする */
+  .money-coin {
+    border-radius: 50%;
+  }
+
+  @keyframes dropIn {
+    0% { transform: translateY(-40px) scale(0.7); opacity: 0; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+  }
+
+  /* --- Zone B: 計算式エリア (20%) --- */
+  .zone-b {
+    flex: 2;
+    background: #fff;
+    padding: 15px 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+  }
+
+  .formula {
+    color: #747d8c;
+    font-size: 1.2rem;
+    min-height: 1.5rem;
+    word-break: break-all;
+    text-align: right;
+    margin-bottom: 5px;
+  }
+
+  .total-area {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: var(--text-main);
+  }
+
+  /* --- Zone C: キーパッドエリア (40%) --- */
+  .zone-c {
+    flex: 4;
+    background: #f1f2f6;
+    padding: 15px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  button {
+    border: none;
+    background: var(--btn-bg);
+    border-radius: 12px;
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--text-main);
+    box-shadow: 0 4px 0 #dfe4ea;
+    cursor: pointer;
+    transition: transform 0.05s, box-shadow 0.05s;
+  }
+
+  button:active {
+    transform: translateY(4px);
+    box-shadow: 0 0 0 #dfe4ea;
+    background: var(--btn-active);
+  }
+
+  .btn-op {
+    background: #eccc68;
+    color: #2f3542;
+    box-shadow: 0 4px 0 #d4a52c;
+  }
+  .btn-op:active { box-shadow: 0 0 0 #d4a52c; }
+
+  .btn-calc {
+    background: #ff4757;
+    color: #fff;
+    box-shadow: 0 4px 0 #ff6b81;
+  }
+  .btn-calc:active { box-shadow: 0 0 0 #ff6b81; }
+
+  .btn-clear {
+    color: var(--accent);
+  }
+</style>
+</head>
+<body>
+
+<div class="calculator">
+  <div class="zone-a" id="money-tray"></div>
+  
+  <div class="zone-b">
+    <div class="formula" id="formula"></div>
+    <div class="total-area" id="total-text">0 円</div>
+  </div>
+
+  <div class="zone-c">
+    <button onclick="inputNumber('7')">7</button>
+    <button onclick="inputNumber('8')">8</button>
+    <button onclick="inputNumber('9')">9</button>
+    <button class="btn-op" onclick="inputOperator('+')">＋</button>
+
+    <button onclick="inputNumber('4')">4</button>
+    <button onclick="inputNumber('5')">5</button>
+    <button onclick="inputNumber('6')">6</button>
+    <button class="btn-op" onclick="inputOperator('-')">－</button>
+
+    <button onclick="inputNumber('1')">1</button>
+    <button onclick="inputNumber('2')">2</button>
+    <button onclick="inputNumber('3')">3</button>
+    <button class="btn-calc" onclick="calculateResult()">＝</button>
+
+    <button class="btn-clear" onclick="clearAll()">C</button>
+    <button onclick="inputNumber('0')">0</button>
+    <button onclick="inputNumber('00')">00</button>
+    <button onclick="backspace()">戻る</button>
+  </div>
+</div>
+
+<script>
+  let currentVal = '0';
+  let formulaArray = [];
+  let isResultDisplayed = false;
+
+  function updateDisplay() {
+    const formulaDiv = document.getElementById('formula');
+    const totalDiv = document.getElementById('total-text');
+
+    let formulaStr = formulaArray.join(' ').replace(/\+/g, '＋').replace(/\-/g, '－');
+    
+    if (isResultDisplayed) {
+      formulaDiv.innerText = formulaStr + ' ＝';
+    } else {
+      formulaDiv.innerText = formulaStr + (formulaArray.length > 0 ? ' ' : '') + (currentVal !== '0' ? currentVal : '');
+    }
+
+    let currentTotal = calculateRunningTotal();
+    totalDiv.innerText = currentTotal.toLocaleString() + ' 円';
+
+    renderMoney(currentTotal);
+  }
+
+  function calculateRunningTotal() {
+    let expression = formulaArray.slice();
+    if (!isResultDisplayed && currentVal !== '0') {
+      expression.push(currentVal);
+    }
+    if (expression.length === 0) return 0;
+    if (['+', '-'].includes(expression[expression.length - 1])) {
+      expression.pop();
+    }
+
+    let total = Number(expression[0]) || 0;
+    for (let i = 1; i < expression.length; i += 2) {
+      let op = expression[i];
+      let num = Number(expression[i+1]) || 0;
+      if (op === '+') total += num;
+      if (op === '-') total -= num;
+    }
+    return Math.max(0, total);
+  }
+
+  function inputNumber(numStr) {
+    if (isResultDisplayed) {
+      currentVal = numStr === '00' ? '0' : numStr;
+      formulaArray = [];
+      isResultDisplayed = false;
+    } else {
+      if (currentVal === '0') {
+        currentVal = numStr === '00' ? '0' : numStr;
+      } else {
+        currentVal += numStr;
+      }
+    }
+    updateDisplay();
+  }
+
+  function inputOperator(op) {
+    if (isResultDisplayed) {
+      formulaArray = [calculateRunningTotal().toString(), op];
+      currentVal = '0';
+      isResultDisplayed = false;
+    } else {
+      if (currentVal !== '0') {
+        formulaArray.push(currentVal);
+        formulaArray.push(op);
+        currentVal = '0';
+      } else if (formulaArray.length > 0) {
+        formulaArray[formulaArray.length - 1] = op;
+      }
+    }
+    updateDisplay();
+  }
+
+  function calculateResult() {
+    if (isResultDisplayed || formulaArray.length === 0) return;
+    if (currentVal !== '0') {
+      formulaArray.push(currentVal);
+    } else {
+      formulaArray.pop();
+    }
+    currentVal = calculateRunningTotal().toString();
+    isResultDisplayed = true;
+    updateDisplay();
+  }
+
+  function backspace() {
+    if (isResultDisplayed) return;
+    if (currentVal !== '0') {
+      currentVal = currentVal.slice(0, -1);
+      if (currentVal === '') currentVal = '0';
+    }
+    updateDisplay();
+  }
+
+  function clearAll() {
+    currentVal = '0';
+    formulaArray = [];
+    isResultDisplayed = false;
+    updateDisplay();
+  }
+
+  // --- お金のイラスト描画ロジック (インラインSVG) ---
+  function renderMoney(amount) {
+    const tray = document.getElementById('money-tray');
+    tray.innerHTML = ''; 
+
+    // 日本のお金を再現したイラストデータ
+    const denominations = [
+      { 
+        val: 1000, 
+        isCoin: false,
+        svg: `<svg width="120" height="60" viewBox="0 0 120 60">
+                <rect width="120" height="60" rx="3" fill="#dae9e4" stroke="#9bbcb0" stroke-width="2"/>
+                <rect x="4" y="4" width="112" height="52" fill="none" stroke="#b4ceca" stroke-width="1" stroke-dasharray="3,2"/>
+                <ellipse cx="25" cy="30" rx="13" ry="17" fill="#cbe2da" stroke="#a3c7bc"/>
+                <circle cx="25" cy="25" r="5" fill="#92b5aa"/>
+                <path d="M15,44 Q25,36 35,44 Z" fill="#92b5aa"/>
+                <circle cx="95" cy="30" r="14" fill="#fff" opacity="0.4"/>
+                <text x="65" y="34" font-family="'Arial Black', sans-serif" font-size="15" font-weight="bold" fill="#3f5950" text-anchor="middle">1000</text>
+                <text x="65" y="45" font-family="sans-serif" font-size="7" fill="#527065" text-anchor="middle">千円</text>
+              </svg>`
+      },
+      {
+        val: 500,
+        isCoin: true,
+        svg: `<svg width="56" height="56" viewBox="0 0 56 56">
+                <circle cx="28" cy="28" r="26" fill="#e5c158" stroke="#cfa633" stroke-width="2"/>
+                <circle cx="28" cy="28" r="23" fill="none" stroke="#f0d584" stroke-width="1" stroke-dasharray="2,2"/>
+                <text x="28" y="35" font-family="'Arial Black', sans-serif" font-size="18" font-weight="bold" fill="#735600" text-anchor="middle">500</text>
+                <circle cx="28" cy="13" r="1.5" fill="#735600"/><circle cx="28" cy="43" r="1.5" fill="#735600"/>
+              </svg>`
+      },
+      {
+        val: 100,
+        isCoin: true,
+        svg: `<svg width="50" height="50" viewBox="0 0 50 50">
+                <circle cx="25" cy="25" r="23" fill="#dcdde1" stroke="#a4b0be" stroke-width="2"/>
+                <circle cx="25" cy="25" r="20" fill="none" stroke="#f1f2f6" stroke-width="1" stroke-dasharray="3,1"/>
+                <text x="25" y="31" font-family="'Arial Black', sans-serif" font-size="16" font-weight="bold" fill="#47525d" text-anchor="middle">100</text>
+                <path d="M25,10 Q23,13 25,15 Q27,13 25,10 Z" fill="#95a5a6" opacity="0.4"/>
+                <path d="M25,40 Q23,37 25,35 Q27,37 25,40 Z" fill="#95a5a6" opacity="0.4"/>
+              </svg>`
+      },
+      {
+        val: 50,
+        isCoin: true,
+        svg: `<svg width="46" height="46" viewBox="0 0 46 46">
+                <circle cx="23" cy="23" r="21" fill="#dcdde1" stroke="#a4b0be" stroke-width="2"/>
+                <circle cx="23" cy="23" r="5" fill="#2c3e50" stroke="#a4b0be" stroke-width="1.5"/>
+                <text x="23" y="15" font-family="'Arial Black', sans-serif" font-size="11" font-weight="bold" fill="#47525d" text-anchor="middle">50</text>
+                <circle cx="12" cy="23" r="1.5" fill="#95a5a6"/><circle cx="34" cy="23" r="1.5" fill="#95a5a6"/>
+              </svg>`
+      },
+      {
+        val: 10,
+        isCoin: true,
+        svg: `<svg width="46" height="46" viewBox="0 0 46 46">
+                <circle cx="23" cy="23" r="21" fill="#d3824a" stroke="#b0622b" stroke-width="2"/>
+                <circle cx="23" cy="23" r="18" fill="none" stroke="#e69c67" stroke-width="1"/>
+                <text x="23" y="30" font-family="'Arial Black', sans-serif" font-size="17" font-weight="bold" fill="#5c2e0b" text-anchor="middle">10</text>
+                <path d="M13,34 L33,34" stroke="#5c2e0b" stroke-width="1" opacity="0.5"/>
+              </svg>`
+      },
+      {
+        val: 5,
+        isCoin: true,
+        svg: `<svg width="42" height="42" viewBox="0 0 42 42">
+                <circle cx="21" cy="21" r="19" fill="#e0b33c" stroke="#bd9124" stroke-width="2"/>
+                <circle cx="21" cy="21" r="4.5" fill="#2c3e50" stroke="#bd9124" stroke-width="1.5"/>
+                <text x="21" y="14" font-family="'Arial Black', sans-serif" font-size="11" font-weight="bold" fill="#614603" text-anchor="middle">5</text>
+                <path d="M21,6 L21,9" stroke="#614603" stroke-width="1"/>
+                <path d="M14,33 L28,33" stroke="#614603" stroke-width="1" opacity="0.6"/>
+              </svg>`
+      },
+      {
+        val: 1,
+        isCoin: true,
+        svg: `<svg width="38" height="38" viewBox="0 0 38 38">
+                <circle cx="19" cy="19" r="17" fill="#eaedf0" stroke="#b2bec3" stroke-width="1.5"/>
+                <text x="19" y="24" font-family="'Arial Black', sans-serif" font-size="14" font-weight="bold" fill="#636e72" text-anchor="middle">1</text>
+                <path d="M19,26 L19,28 M15,27 Q19,28 23,27" fill="none" stroke="#636e72" stroke-width="1" opacity="0.4"/>
+              </svg>`
+      }
+    ];
+
+    let remaining = amount;
+    let delayCounter = 0;
+
+    denominations.forEach(denom => {
+      let count = Math.floor(remaining / denom.val);
+      if (count > 0) {
+        for (let i = 0; i < count; i++) {
+          let moneyWrapper = document.createElement('div');
+          // 紙幣か硬貨かで影の形を変えるクラスを付与
+          moneyWrapper.className = `money ${denom.isCoin ? 'money-coin' : ''}`;
+          moneyWrapper.innerHTML = denom.svg;
+          moneyWrapper.style.animationDelay = `${delayCounter * 0.04}s`;
+          tray.appendChild(moneyWrapper);
+          delayCounter++;
+        }
+        remaining = remaining % denom.val;
+      }
+    });
+  }
+
+  // 初期化
+  updateDisplay();
+</script>
+
+</body>
+</html>
